@@ -101,7 +101,7 @@ await withTaskIsolatedEnv(AppEnv.self, override: { env in
     prepareTaskIsolatedEnv(AppEnv.self, override: { env in
         env.showDebugBadge = true
     })
-    FeatureView()
+    return FeatureView()
 }
 ```
 
