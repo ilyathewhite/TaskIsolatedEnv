@@ -57,9 +57,7 @@ struct AppEnv: TaskIsolatedEnvType {
     var api: APIClient
     var showDebugBadge: Bool
 
-    static var liveValue: Self {
-        .init(api: .live, showDebugBadge: false)
-    }
+    static let liveValue = Self(api: .live, showDebugBadge: false)
 }
 
 var appEnv: AppEnv {
