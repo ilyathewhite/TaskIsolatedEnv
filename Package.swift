@@ -5,7 +5,7 @@ import PackageDescription
 let package = Package(
     name: "TaskIsolatedEnv",
     platforms: [
-        .macOS("15.0"), .iOS("18")
+        .macOS("15.0"), .iOS("17.6")
     ],
     products: [
         .library(
