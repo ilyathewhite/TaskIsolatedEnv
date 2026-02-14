@@ -8,11 +8,11 @@ It is inspired by [Point-Free's Dependencies](https://github.com/pointfreeco/swi
 
 - Provide an environment that encapsulates all the dependencies in one place.
 - Lock the environment in release builds so configuration cannot be accidentally changed at runtime.
-- Allow scoped overrides for tests and previews.
+- Allow overrides in debug when you need test or preview configuration.
 
 `TaskIsolatedEnv` does this by design:
 - `currentTaskIsolatedEnv` returns `liveValue` in release.
-- `withTaskIsolatedEnv` is available only in debug.
+- Override APIs are available only in debug.
 
 ## Design Rules
 
@@ -70,13 +70,45 @@ func profileTitle(userID: Int) async throws -> String {
 }
 
 // Debug/test scope: override only one endpoint.
-await withTaskIsolatedEnv(AppEnv.self, override: {
-    $0.api.fetchUser = { id in User(id: id, name: "Test user \(id)") }
+await withTaskIsolatedEnv(AppEnv.self, override: { env in
+    env.api.fetchUser = { id in User(id: id, name: "Test user \(id)") }
 }) {
     _ = try await appEnv.api.fetchUser(42)        // overridden
     _ = try await appEnv.api.searchUsers("anna")  // unchanged (still live)
 }
 ```
+
+## API Guide
+
+- `currentTaskIsolatedEnv(Type.self)`
+  - Reads the current environment value.
+  - In release, this is always `Type.liveValue`.
+  - In debug, it can read prepared or task-scoped overrides.
+
+- `withTaskIsolatedEnv(Type.self, override:operation:)`
+  - Use this for tests and short-lived scoped overrides.
+  - The override is active only inside `operation`.
+  - Nested scopes are supported and values are restored automatically.
+  - This does not leak across tests when used as intended.
+
+- `prepareTaskIsolatedEnv(Type.self, override:)`
+  - Use this for Xcode previews (and app startup-style setup) where there is no natural scoped operation.
+  - The prepared value stays active until replaced or reset.
+  - Preview pattern:
+
+```swift
+#Preview {
+    prepareTaskIsolatedEnv(AppEnv.self, override: { env in
+        env.showDebugBadge = true
+    })
+    FeatureView()
+}
+```
+
+- `resetPreparedTaskIsolatedEnv(Type.self)` and `resetPreparedTaskIsolatedEnvs()`
+  - These clear prepared (persistent) overrides.
+  - Usually not needed for normal tests because tests should prefer `withTaskIsolatedEnv`.
+  - Useful when you use `prepareTaskIsolatedEnv` in long-lived processes and want explicit cleanup.
 
 Swift 6 note:
 - If `liveValue` is a shared `static let`, closure properties in the environment should be `@Sendable`.
@@ -101,7 +133,8 @@ public var packageEnv: PackageEnv {
 
 ## Behavior
 
-- `currentTaskIsolatedEnv` reads task-local overrides only in debug.
-- `withTaskIsolatedEnv` exists only in debug builds.
+- `currentTaskIsolatedEnv` reads task-scoped overrides first in debug, then prepared overrides.
+- `withTaskIsolatedEnv` exists only in debug builds and is operation-scoped.
+- `prepareTaskIsolatedEnv` exists only in debug builds and is persistent until reset/replaced.
 - Overrides support nesting: inner scopes shadow outer scopes, and values are restored on exit.
 - The compiler ensures that the environment is locked in release builds.
