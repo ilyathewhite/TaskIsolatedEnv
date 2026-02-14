@@ -24,29 +24,29 @@ public func currentTaskIsolatedEnv<Env: TaskIsolatedEnvType>(_ type: Env.Type = 
 }
 
 #if DEBUG
-public func withTaskIsolatedEnv<Env: TaskIsolatedEnvType>(
+public func withTaskIsolatedEnv<Env: TaskIsolatedEnvType, Output>(
     _ type: Env.Type = Env.self,
     override mutate: (inout Env) -> Void,
-    operation: () throws -> Void
-) rethrows {
+    operation: () throws -> Output
+) rethrows -> Output {
     var value = currentTaskIsolatedEnv(type)
     mutate(&value)
 
     var values = TaskLocalEnvRegistry.values
     values[ObjectIdentifier(type)] = .init(value: value)
-    try TaskLocalEnvRegistry.$values.withValue(values, operation: operation)
+    return try TaskLocalEnvRegistry.$values.withValue(values, operation: operation)
 }
 
-public func withTaskIsolatedEnv<Env: TaskIsolatedEnvType>(
+public func withTaskIsolatedEnv<Env: TaskIsolatedEnvType, Output>(
     _ type: Env.Type = Env.self,
     override mutate: (inout Env) -> Void,
-    operation: () async throws -> Void
-) async rethrows {
+    operation: () async throws -> Output
+) async rethrows -> Output {
     var value = currentTaskIsolatedEnv(type)
     mutate(&value)
 
     var values = TaskLocalEnvRegistry.values
     values[ObjectIdentifier(type)] = .init(value: value)
-    try await TaskLocalEnvRegistry.$values.withValue(values, operation: operation)
+    return try await TaskLocalEnvRegistry.$values.withValue(values, operation: operation)
 }
 #endif
