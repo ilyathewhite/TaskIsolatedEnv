@@ -36,8 +36,8 @@ struct User: Equatable {
 }
 
 struct APIClient {
-    var fetchUser: (_ id: Int) async throws -> User
-    var searchUsers: (_ query: String) async throws -> [User]
+    var fetchUser: @Sendable (_ id: Int) async throws -> User
+    var searchUsers: @Sendable (_ query: String) async throws -> [User]
 
     static func fetchUser(id: Int) async throws -> User {
         ...
@@ -77,6 +77,11 @@ await withTaskIsolatedEnv(AppEnv.self, override: {
     _ = try await appEnv.api.searchUsers("anna")  // unchanged (still live)
 }
 ```
+
+Swift 6 note:
+- If `liveValue` is a shared `static let`, closure properties in the environment should be `@Sendable`.
+- If a closure must run on the main actor, use `@MainActor`.
+- If all stored properties are sendable, the environment type is usually sendable automatically.
 
 ## Optional Package Root
 

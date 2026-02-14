@@ -3,6 +3,12 @@ import Testing
 
 private struct TestEnv: TaskIsolatedEnvType, Equatable {
     var value: Int = 1
+    var formatValue: @Sendable (_ value: Int) -> String = { "value:\($0)" }
+
+    static func == (lhs: TestEnv, rhs: TestEnv) -> Bool {
+        lhs.value == rhs.value
+    }
+
     static let liveValue = TestEnv()
 }
 
@@ -14,7 +20,9 @@ private struct OtherTestEnv: TaskIsolatedEnvType, Equatable {
 struct TaskIsolatedEnvTests {
     @Test
     func currentValueUsesLiveByDefault() {
-        #expect(currentTaskIsolatedEnv(TestEnv.self).value == 1)
+        let env = currentTaskIsolatedEnv(TestEnv.self)
+        #expect(env.value == 1)
+        #expect(env.formatValue(1) == "value:1")
     }
 
 #if DEBUG
@@ -27,6 +35,17 @@ struct TaskIsolatedEnvTests {
         }
 
         #expect(currentTaskIsolatedEnv(TestEnv.self).value == 1)
+    }
+
+    @Test
+    func closurePropertyOverride() {
+        #expect(currentTaskIsolatedEnv(TestEnv.self).formatValue(2) == "value:2")
+
+        withTaskIsolatedEnv(TestEnv.self, override: { $0.formatValue = { "override:\($0)" } }) {
+            #expect(currentTaskIsolatedEnv(TestEnv.self).formatValue(2) == "override:2")
+        }
+
+        #expect(currentTaskIsolatedEnv(TestEnv.self).formatValue(2) == "value:2")
     }
 
     @Test
