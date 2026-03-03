@@ -67,8 +67,8 @@ public func currentTaskIsolatedEnv<Env: TaskIsolatedEnvType>(_ type: Env.Type = 
 
 public func withTaskIsolatedEnv<Env: TaskIsolatedEnvType>(
     _ type: Env.Type = Env.self,
-    override mutate: (inout Env) -> Void,
-    operation: () throws -> Void
+    override mutate: @Sendable (inout Env) -> Void,
+    operation: @Sendable () throws -> Void
 ) rethrows {
     var value = currentTaskIsolatedEnv(type)
     mutate(&value)
@@ -78,10 +78,26 @@ public func withTaskIsolatedEnv<Env: TaskIsolatedEnvType>(
     try TaskLocalEnvRegistry.$values.withValue(values, operation: operation)
 }
 
+@MainActor
 public func withTaskIsolatedEnv<Env: TaskIsolatedEnvType>(
     _ type: Env.Type = Env.self,
-    override mutate: (inout Env) -> Void,
-    operation: () async throws -> Void
+    override mutate: @MainActor (inout Env) -> Void,
+    operation: @MainActor () throws -> Void
+) rethrows {
+    var value = currentTaskIsolatedEnv(type)
+    mutate(&value)
+
+    var values = TaskLocalEnvRegistry.values
+    values[ObjectIdentifier(type)] = .init(value: value)
+    try TaskLocalEnvRegistry.$values.withValue(values) {
+        try operation()
+    }
+}
+
+public func withTaskIsolatedEnv<Env: TaskIsolatedEnvType>(
+    _ type: Env.Type = Env.self,
+    override mutate: @Sendable (inout Env) -> Void,
+    operation: @Sendable () async throws -> Void
 ) async rethrows {
     var value = currentTaskIsolatedEnv(type)
     mutate(&value)
@@ -89,6 +105,22 @@ public func withTaskIsolatedEnv<Env: TaskIsolatedEnvType>(
     var values = TaskLocalEnvRegistry.values
     values[ObjectIdentifier(type)] = .init(value: value)
     try await TaskLocalEnvRegistry.$values.withValue(values, operation: operation)
+}
+
+@MainActor
+public func withTaskIsolatedEnv<Env: TaskIsolatedEnvType>(
+    _ type: Env.Type = Env.self,
+    override mutate: @MainActor (inout Env) -> Void,
+    operation: @MainActor () async throws -> Void
+) async rethrows {
+    var value = currentTaskIsolatedEnv(type)
+    mutate(&value)
+
+    var values = TaskLocalEnvRegistry.values
+    values[ObjectIdentifier(type)] = .init(value: value)
+    try await TaskLocalEnvRegistry.$values.withValue(values) {
+        try await operation()
+    }
 }
 
 public func prepareTaskIsolatedEnv<Env: TaskIsolatedEnvType>(

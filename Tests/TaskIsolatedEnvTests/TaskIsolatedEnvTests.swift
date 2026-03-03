@@ -117,24 +117,29 @@ struct TaskIsolatedEnvTests {
 
     @Test
     func concurrentSiblingOverridesDoNotLeak() async {
+        enum ScopedReadError: Error {
+            case leakedValue
+        }
+
         await withTaskGroup(of: Bool.self) { group in
             for i in 0..<40 {
                 group.addTask {
-                    var allReadsWereScoped = true
-
-                    await withTaskIsolatedEnv(TestEnv.self, override: { env in
-                        env.value = i
-                    }) {
-                        for _ in 0..<20 {
-                            if currentTaskIsolatedEnv(TestEnv.self).value != i {
-                                allReadsWereScoped = false
-                                return
+                    do {
+                        try await withTaskIsolatedEnv(TestEnv.self, override: { env in
+                            env.value = i
+                        }) {
+                            for _ in 0..<20 {
+                                guard currentTaskIsolatedEnv(TestEnv.self).value == i else {
+                                    throw ScopedReadError.leakedValue
+                                }
+                                await Task.yield()
                             }
-                            await Task.yield()
                         }
-                    }
 
-                    return allReadsWereScoped && currentTaskIsolatedEnv(TestEnv.self).value == 1
+                        return currentTaskIsolatedEnv(TestEnv.self).value == 1
+                    } catch {
+                        return false
+                    }
                 }
             }
 
