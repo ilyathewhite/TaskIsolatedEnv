@@ -2,6 +2,8 @@
 
 `TaskIsolatedEnv` is a tiny task-local environment helper for Swift concurrency.
 
+Requires Swift 6.2 or later and builds in Swift 6 language mode.
+
 It is inspired by [Point-Free's Dependencies](https://github.com/pointfreeco/swift-dependencies), but intentionally much smaller and opinionated.
 
 ## Core Idea
@@ -30,12 +32,12 @@ This keeps a single source of truth for environment values inside a boundary.
 ```swift
 import TaskIsolatedEnv
 
-struct User: Equatable {
+struct User: Equatable, Sendable {
     var id: Int
     var name: String
 }
 
-struct APIClient {
+struct APIClient: Sendable {
     var fetchUser: @Sendable (_ id: Int) async throws -> User
     var searchUsers: @Sendable (_ query: String) async throws -> [User]
 
@@ -110,10 +112,16 @@ await withTaskIsolatedEnv(AppEnv.self, override: { env in
   - Usually not needed for normal tests because tests should prefer `withTaskIsolatedEnv`.
   - Useful when you use `prepareTaskIsolatedEnv` in long-lived processes and want explicit cleanup.
 
-Swift 6 note:
-- If `liveValue` is a shared `static let`, closure properties in the environment should be `@Sendable`.
-- If a closure must run on the main actor, use `@MainActor`.
-- If all stored properties are sendable, the environment type is usually sendable automatically.
+## Migrating to 1.1.0
+
+- Use a Swift 6.2 or later compiler. Clients may use Swift 5 or Swift 6 language mode.
+- `TaskIsolatedEnvType` now inherits `Sendable`, so the compiler checks that stored environments can safely be shared
+  between tasks. Nested dependency types must also be `Sendable`; public structs need an explicit conformance.
+- Environment closure properties should be `@Sendable`, or `@MainActor` when they access UI state.
+- The general scoped closures no longer require `@Sendable`. They can capture caller-local state because the async
+  scoped and preparation functions use `nonisolated(nonsending)` to inherit the caller's actor.
+- Function names, argument lists, and explicit `@MainActor` overloads are preserved. Existing call syntax and
+  task-local override behavior remain the same.
 
 ## Optional Package Root
 

@@ -1,11 +1,11 @@
 import Foundation
 
-public protocol TaskIsolatedEnvType {
+public protocol TaskIsolatedEnvType: Sendable {
     static var liveValue: Self { get }
 }
 
-private struct EnvBox: @unchecked Sendable {
-    let value: Any
+private struct EnvBox: Sendable {
+    let value: any Sendable
 }
 
 private enum TaskLocalEnvRegistry {
@@ -19,7 +19,10 @@ private func taskLocalEnvOverride<Env>(_ type: Env.Type) -> Env? {
 #if DEBUG
 private enum PreparedEnvRegistry {
     static let lock = NSRecursiveLock()
-    static var values: [ObjectIdentifier: EnvBox] = [:]
+
+    // Every access is protected by the recursive lock. The compiler cannot
+    // infer that synchronization for this manually locked storage.
+    nonisolated(unsafe) private static var values: [ObjectIdentifier: EnvBox] = [:]
 
     static func value<Env>(for type: Env.Type) -> Env? {
         lock.lock()
@@ -27,7 +30,7 @@ private enum PreparedEnvRegistry {
         return values[ObjectIdentifier(type)]?.value as? Env
     }
 
-    static func set<Env>(_ value: Env, for type: Env.Type) {
+    static func set<Env: Sendable>(_ value: Env, for type: Env.Type) {
         lock.lock()
         defer { lock.unlock() }
         values[ObjectIdentifier(type)] = .init(value: value)
@@ -67,8 +70,8 @@ public func currentTaskIsolatedEnv<Env: TaskIsolatedEnvType>(_ type: Env.Type = 
 
 public func withTaskIsolatedEnv<Env: TaskIsolatedEnvType>(
     _ type: Env.Type = Env.self,
-    override mutate: @Sendable (inout Env) -> Void,
-    operation: @Sendable () throws -> Void
+    override mutate: (inout Env) -> Void,
+    operation: () throws -> Void
 ) rethrows {
     var value = currentTaskIsolatedEnv(type)
     mutate(&value)
@@ -94,10 +97,11 @@ public func withTaskIsolatedEnv<Env: TaskIsolatedEnvType>(
     }
 }
 
+nonisolated(nonsending)
 public func withTaskIsolatedEnv<Env: TaskIsolatedEnvType>(
     _ type: Env.Type = Env.self,
-    override mutate: @Sendable (inout Env) -> Void,
-    operation: @Sendable () async throws -> Void
+    override mutate: (inout Env) -> Void,
+    operation: () async throws -> Void
 ) async rethrows {
     var value = currentTaskIsolatedEnv(type)
     mutate(&value)
@@ -132,6 +136,7 @@ public func prepareTaskIsolatedEnv<Env: TaskIsolatedEnvType>(
     PreparedEnvRegistry.set(value, for: type)
 }
 
+nonisolated(nonsending)
 public func prepareTaskIsolatedEnv<Env: TaskIsolatedEnvType>(
     _ type: Env.Type = Env.self,
     override mutate: (inout Env) async throws -> Void
