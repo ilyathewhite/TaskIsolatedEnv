@@ -8,21 +8,12 @@ let package = Package(
         .macOS("15.0"), .iOS("17.6")
     ],
     products: [
-        .library(
-            name: "TaskIsolatedEnv",
-            targets: ["TaskIsolatedEnv"]
-        )
+        .library(name: "TaskIsolatedEnv", targets: ["TaskIsolatedEnv"])
     ],
     dependencies: [],
     targets: [
-        .target(
-            name: "TaskIsolatedEnv",
-            dependencies: []
-        ),
-        .testTarget(
-            name: "TaskIsolatedEnvTests",
-            dependencies: ["TaskIsolatedEnv"]
-        )
+        .target(name: "TaskIsolatedEnv", dependencies: []),
+        .testTarget(name: "TaskIsolatedEnvTests", dependencies: ["TaskIsolatedEnv"])
     ],
     swiftLanguageModes: [.v6]
 )

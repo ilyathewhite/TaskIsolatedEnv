@@ -137,7 +137,8 @@ struct TaskIsolatedEnvTests {
                         }
 
                         return currentTaskIsolatedEnv(TestEnv.self).value == 1
-                    } catch {
+                    }
+                    catch {
                         return false
                     }
                 }
@@ -185,9 +186,7 @@ struct PreparedTaskIsolatedEnvTests {
 
         #expect(currentTaskIsolatedEnv(PreparedTestEnv.self).value == 1)
 
-        prepareTaskIsolatedEnv(PreparedTestEnv.self, override: { env in
-            env.value = 42
-        })
+        prepareTaskIsolatedEnv(PreparedTestEnv.self, override: { env in env.value = 42 })
         #expect(currentTaskIsolatedEnv(PreparedTestEnv.self).value == 42)
 
         withTaskIsolatedEnv(PreparedTestEnv.self, override: { env in
@@ -218,12 +217,8 @@ struct PreparedTaskIsolatedEnvTests {
     func resetAllPreparedOverridesClearsEveryPreparedValue() {
         defer { resetPreparedTaskIsolatedEnvs() }
 
-        prepareTaskIsolatedEnv(PreparedTestEnvA.self, override: { env in
-            env.value = 10
-        })
-        prepareTaskIsolatedEnv(PreparedTestEnvB.self, override: { env in
-            env.value = 20
-        })
+        prepareTaskIsolatedEnv(PreparedTestEnvA.self, override: { env in env.value = 10 })
+        prepareTaskIsolatedEnv(PreparedTestEnvB.self, override: { env in env.value = 20 })
 
         #expect(currentTaskIsolatedEnv(PreparedTestEnvA.self).value == 10)
         #expect(currentTaskIsolatedEnv(PreparedTestEnvB.self).value == 20)
